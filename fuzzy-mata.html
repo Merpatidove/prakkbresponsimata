@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistem Fuzzy — Diagnosa Gangguan Mata</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --c-bg: #0a0e1a;
+    --c-surface: #111827;
+    --c-surface2: #1a2236;
+    --c-border: rgba(99,130,255,0.15);
+    --c-border2: rgba(99,130,255,0.3);
+    --c-accent: #6382ff;
+    --c-accent2: #a78bfa;
+    --c-teal: #2dd4bf;
+    --c-amber: #fbbf24;
+    --c-red: #f87171;
+    --c-green: #34d399;
+    --c-text: #e2e8f0;
+    --c-muted: #94a3b8;
+    --c-dim: #475569;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--c-bg);
+    color: var(--c-text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid noise background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(99,130,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99,130,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; position: relative; z-index: 1; }
+
+  /* Header */
+  header { text-align: center; padding: 3rem 0 2.5rem; }
+
+  .badge {
+    display: inline-block;
+    background: rgba(99,130,255,0.12);
+    border: 1px solid rgba(99,130,255,0.3);
+    color: #a5b4fc;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 6px 16px;
+    border-radius: 20px;
+    margin-bottom: 1.5rem;
+  }
+
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    line-height: 1.15;
+    color: #fff;
+    margin-bottom: 1rem;
+  }
+
+  h1 em {
+    font-style: italic;
+    background: linear-gradient(135deg, #6382ff, #a78bfa, #2dd4bf);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    color: var(--c-muted);
+    font-size: 1rem;
+    max-width: 520px;
+    margin: 0 auto;
+    line-height: 1.7;
+  }
+
+  /* Info bar */
+  .info-bar {
+    display: flex;
+    gap: 1rem;
+    margin: 2rem 0;
+    flex-wrap: wrap;
+  }
+
+  .info-chip {
+    flex: 1;
+    min-width: 180px;
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .chip-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .chip-label { font-size: 11px; color: var(--c-dim); text-transform: uppercase; letter-spacing: 1px; }
+  .chip-val { font-size: 14px; font-weight: 500; color: var(--c-text); margin-top: 2px; }
+
+  /* Section */
+  .section {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: 16px;
+    padding: 1.75rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1.5rem;
+  }
+
+  .section-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(99,130,255,0.15);
+    border: 1px solid rgba(99,130,255,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--c-accent);
+    flex-shrink: 0;
+  }
+
+  .section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--c-text);
+  }
+
+  /* Slider group */
+  .slider-group { margin-bottom: 1.5rem; }
+  .slider-group:last-child { margin-bottom: 0; }
+
+  .slider-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+  }
+
+  .slider-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--c-text);
+  }
+
+  .slider-name small {
+    font-size: 11px;
+    color: var(--c-dim);
+    font-weight: 400;
+    margin-left: 6px;
+  }
+
+  .slider-val-badge {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 3px 12px;
+    border-radius: 20px;
+    background: rgba(99,130,255,0.1);
+    border: 1px solid rgba(99,130,255,0.2);
+    color: #a5b4fc;
+    min-width: 60px;
+    text-align: center;
+  }
+
+  /* Custom slider */
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--c-surface2);
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--c-accent);
+    border: 2px solid rgba(255,255,255,0.2);
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+  .slider-track-wrap { position: relative; }
+
+  .slider-marks {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 5px;
+    font-size: 10px;
+    color: var(--c-dim);
+  }
+
+  /* MF chart area */
+  .mf-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 1rem;
+  }
+
+  .mf-card {
+    background: var(--c-surface2);
+    border: 1px solid var(--c-border);
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+  }
+
+  .mf-label { font-size: 11px; color: var(--c-dim); margin-bottom: 6px; letter-spacing: 0.5px; }
+  .mf-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .mf-bar-wrap { height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; margin: 6px 0; }
+  .mf-bar { height: 100%; border-radius: 3px; transition: width 0.4s cubic-bezier(0.4,0,0.2,1); }
+  .mf-val { font-size: 13px; font-weight: 700; }
+
+  /* Diagnose button */
+  .btn-diagnose {
+    width: 100%;
+    padding: 1rem;
+    background: linear-gradient(135deg, #6382ff, #8b5cf6);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    transition: all 0.2s;
+    margin-bottom: 1.25rem;
+  }
+
+  .btn-diagnose:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(99,130,255,0.35); }
+  .btn-diagnose:active { transform: translateY(0); }
+
+  /* Result */
+  #result-section { display: none; }
+
+  .result-card {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border2);
+    border-radius: 16px;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .result-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #6382ff, #a78bfa, #2dd4bf);
+  }
+
+  .result-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .result-diagnosis {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.8rem;
+    color: #fff;
+    line-height: 1.2;
+  }
+
+  .result-confidence {
+    text-align: right;
+  }
+
+  .conf-label { font-size: 11px; color: var(--c-dim); text-transform: uppercase; letter-spacing: 1px; }
+  .conf-value {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #6382ff, #2dd4bf);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .result-bars { margin-bottom: 1.5rem; }
+
+  .res-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .res-bar-label { font-size: 13px; color: var(--c-muted); width: 130px; flex-shrink: 0; }
+  .res-bar-track { flex: 1; height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; }
+  .res-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
+  .res-bar-pct { font-size: 13px; font-weight: 600; width: 45px; text-align: right; }
+
+  .result-desc {
+    background: var(--c-surface2);
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+    border-left: 3px solid var(--c-accent);
+  }
+
+  .result-desc p { font-size: 14px; color: var(--c-muted); line-height: 1.7; }
+
+  .result-recs h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--c-text);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .rec-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .rec-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--c-muted);
+    line-height: 1.5;
+  }
+
+  .rec-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--c-teal);
+    flex-shrink: 0;
+    margin-top: 5px;
+  }
+
+  /* Fuzzy viz */
+  .fuzzy-vis {
+    margin-bottom: 1.25rem;
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: 16px;
+    padding: 1.75rem;
+  }
+
+  canvas { width: 100% !important; display: block; }
+
+  /* Method info */
+  .method-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    margin-top: 1rem;
+  }
+
+  .method-card {
+    background: var(--c-surface2);
+    border: 1px solid var(--c-border);
+    border-radius: 10px;
+    padding: 1rem;
+  }
+
+  .method-card h4 { font-size: 12px; color: var(--c-accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .method-card p { font-size: 13px; color: var(--c-muted); line-height: 1.5; }
+
+  /* Nav link */
+  .nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--c-accent);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    padding: 10px 20px;
+    border: 1px solid rgba(99,130,255,0.3);
+    border-radius: 8px;
+    transition: all 0.2s;
+  }
+  .nav-link:hover { background: rgba(99,130,255,0.1); }
+
+  .nav-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  /* Toggle checkbox style */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--c-border);
+  }
+  .toggle-row:last-child { border-bottom: none; }
+  .toggle-row label { font-size: 14px; color: var(--c-muted); cursor: pointer; }
+
+  input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--c-accent);
+  }
+
+  footer {
+    text-align: center;
+    padding: 2rem 0;
+    color: var(--c-dim);
+    font-size: 12px;
+    border-top: 1px solid var(--c-border);
+    margin-top: 2rem;
+  }
+
+  @media (max-width: 600px) {
+    .mf-row { grid-template-columns: 1fr; }
+    .result-confidence { text-align: left; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Nav -->
+  <div class="nav-row">
+    <div class="badge">Sistem Fuzzy Mamdani</div>
+    <a href="pakar-mata.html" class="nav-link">Beralih ke Sistem Pakar →</a>
+  </div>
+
+  <!-- Header -->
+  <header>
+    <h1>Diagnosa <em>Gangguan Refraksi</em><br>Mata dengan Logika Fuzzy</h1>
+    <p class="subtitle">Sistem inferensi fuzzy berbasis metode Mamdani untuk mengidentifikasi silinder (astigmatisme), rabun jauh (miopi), dan rabun dekat (hiperopi).</p>
+  </header>
+
+  <!-- Method info chips -->
+  <div class="info-bar">
+    <div class="info-chip">
+      <div class="chip-icon" style="background:rgba(99,130,255,0.1);">🔀</div>
+      <div><div class="chip-label">Metode</div><div class="chip-val">Mamdani Fuzzy</div></div>
+    </div>
+    <div class="info-chip">
+      <div class="chip-icon" style="background:rgba(45,212,191,0.1);">📐</div>
+      <div><div class="chip-label">Fungsi Keanggotaan</div><div class="chip-val">Trapesium & Segitiga</div></div>
+    </div>
+    <div class="info-chip">
+      <div class="chip-icon" style="background:rgba(251,191,36,0.1);">⚡</div>
+      <div><div class="chip-label">Defuzzifikasi</div><div class="chip-val">Centroid (COA)</div></div>
+    </div>
+    <div class="info-chip">
+      <div class="chip-icon" style="background:rgba(167,139,250,0.1);">👁️</div>
+      <div><div class="chip-label">Gangguan</div><div class="chip-val">3 Kondisi Refraksi</div></div>
+    </div>
+  </div>
+
+  <!-- Inputs Section -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">1</div>
+      <div class="section-title">Input Gejala Penglihatan</div>
+    </div>
+
+    <!-- Jarak Baca -->
+    <div class="slider-group">
+      <div class="slider-label">
+        <span class="slider-name">Jarak Baca Nyaman <small>(dekat / jauh)</small></span>
+        <span class="slider-val-badge" id="val-jarak">30 cm</span>
+      </div>
+      <div class="slider-track-wrap">
+        <input type="range" id="sl-jarak" min="10" max="100" value="30" step="1" oninput="updateSlider('jarak',this.value)">
+        <div class="slider-marks"><span>10 cm</span><span>dekat</span><span>normal</span><span>jauh</span><span>100 cm</span></div>
+      </div>
+    </div>
+
+    <!-- Ketajaman Penglihatan -->
+    <div class="slider-group">
+      <div class="slider-label">
+        <span class="slider-name">Ketajaman Penglihatan <small>(skala Snellen %)</small></span>
+        <span class="slider-val-badge" id="val-tajam">60%</span>
+      </div>
+      <div class="slider-track-wrap">
+        <input type="range" id="sl-tajam" min="0" max="100" value="60" step="1" oninput="updateSlider('tajam',this.value)">
+        <div class="slider-marks"><span>0%</span><span>buruk</span><span>sedang</span><span>baik</span><span>100%</span></div>
+      </div>
+    </div>
+
+    <!-- Kelelahan Mata -->
+    <div class="slider-group">
+      <div class="slider-label">
+        <span class="slider-name">Kelelahan Mata <small>(intensitas)</small></span>
+        <span class="slider-val-badge" id="val-lelah">5 / 10</span>
+      </div>
+      <div class="slider-track-wrap">
+        <input type="range" id="sl-lelah" min="0" max="10" value="5" step="0.5" oninput="updateSlider('lelah',this.value)">
+        <div class="slider-marks"><span>0</span><span>ringan</span><span>sedang</span><span>berat</span><span>10</span></div>
+      </div>
+    </div>
+
+    <!-- Distorsi Gambar -->
+    <div class="slider-group">
+      <div class="slider-label">
+        <span class="slider-name">Distorsi / Bayangan Berganda <small>(intensitas)</small></span>
+        <span class="slider-val-badge" id="val-distorsi">3 / 10</span>
+      </div>
+      <div class="slider-track-wrap">
+        <input type="range" id="sl-distorsi" min="0" max="10" value="3" step="0.5" oninput="updateSlider('distorsi',this.value)">
+        <div class="slider-marks"><span>0</span><span>tidak ada</span><span>ringan</span><span>parah</span><span>10</span></div>
+      </div>
+    </div>
+
+    <!-- Sakit Kepala -->
+    <div class="slider-group">
+      <div class="slider-label">
+        <span class="slider-name">Sakit Kepala Saat Membaca <small>(frekuensi)</small></span>
+        <span class="slider-val-badge" id="val-sakit">4 / 10</span>
+      </div>
+      <div class="slider-track-wrap">
+        <input type="range" id="sl-sakit" min="0" max="10" value="4" step="0.5" oninput="updateSlider('sakit',this.value)">
+        <div class="slider-marks"><span>0</span><span>jarang</span><span>kadang</span><span>sering</span><span>10</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Fuzzy Visualization -->
+  <div class="fuzzy-vis">
+    <div class="section-header" style="margin-bottom:1rem">
+      <div class="section-num">2</div>
+      <div class="section-title">Derajat Keanggotaan Fuzzy (Real-time)</div>
+    </div>
+    <div class="mf-row" id="mf-display">
+      <!-- filled by JS -->
+    </div>
+  </div>
+
+  <!-- Diagnose Button -->
+  <button class="btn-diagnose" onclick="diagnose()">
+    ⚙ Jalankan Inferensi Fuzzy Mamdani
+  </button>
+
+  <!-- Result Section -->
+  <div id="result-section">
+    <div class="result-card">
+      <div class="result-top">
+        <div>
+          <div style="font-size:11px;color:var(--c-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Diagnosa Utama</div>
+          <div class="result-diagnosis" id="res-diagnosis">—</div>
+          <div style="font-size:13px;color:var(--c-muted);margin-top:4px;" id="res-sub">—</div>
+        </div>
+        <div class="result-confidence">
+          <div class="conf-label">Keyakinan</div>
+          <div class="conf-value" id="res-conf">—</div>
+        </div>
+      </div>
+
+      <!-- Bars for each condition -->
+      <div class="result-bars" id="res-bars"></div>
+
+      <!-- Description -->
+      <div class="result-desc" id="res-desc">
+        <p>—</p>
+      </div>
+
+      <!-- Rules fired -->
+      <div class="section-header" style="margin-bottom:0.75rem">
+        <div style="font-size:12px;font-weight:600;color:var(--c-text);text-transform:uppercase;letter-spacing:1px;">Aturan Fuzzy yang Aktif</div>
+      </div>
+      <div id="res-rules" style="margin-bottom:1.25rem"></div>
+
+      <!-- Recommendations -->
+      <div class="result-recs">
+        <h4>Rekomendasi</h4>
+        <div class="rec-list" id="res-recs"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Method explanation -->
+  <div class="section" style="margin-top:1.25rem">
+    <div class="section-header">
+      <div class="section-num">?</div>
+      <div class="section-title">Cara Kerja Sistem Fuzzy Mamdani</div>
+    </div>
+    <div class="method-grid">
+      <div class="method-card">
+        <h4>1. Fuzzifikasi</h4>
+        <p>Nilai crisp input dikonversi ke derajat keanggotaan (0–1) menggunakan fungsi keanggotaan trapesium dan segitiga untuk setiap variabel linguistik.</p>
+      </div>
+      <div class="method-card">
+        <h4>2. Inferensi</h4>
+        <p>Aturan IF-THEN (rule base) dievaluasi. Setiap aturan menggunakan operator MIN (AND) untuk menghitung kekuatan aktivasi.</p>
+      </div>
+      <div class="method-card">
+        <h4>3. Agregasi</h4>
+        <p>Output dari semua aturan yang aktif digabungkan menggunakan operator MAX, membentuk fungsi keanggotaan output komposit.</p>
+      </div>
+      <div class="method-card">
+        <h4>4. Defuzzifikasi</h4>
+        <p>Nilai output crisp dihitung menggunakan metode Centroid (Center of Area) dari fungsi komposit yang dihasilkan.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Sistem Fuzzy Diagnosa Mata · Metode Mamdani · Untuk keperluan edukasi — bukan pengganti pemeriksaan dokter mata
+  </footer>
+
+</div>
+
+<script>
+// ==============================
+// FUZZY MEMBERSHIP FUNCTIONS
+// ==============================
+
+// Trapezoid MF: trap(x, a, b, c, d)
+function trap(x, a, b, c, d) {
+  if (x <= a || x >= d) return 0;
+  if (x >= b && x <= c) return 1;
+  if (x > a && x < b) return (x - a) / (b - a);
+  return (d - x) / (d - c);
+}
+
+// Triangle MF: tri(x, a, b, c)
+function tri(x, a, b, c) {
+  if (x <= a || x >= c) return 0;
+  if (x === b) return 1;
+  if (x > a && x <= b) return (x - a) / (b - a);
+  return (c - x) / (c - b);
+}
+
+// ==============================
+// MEMBERSHIP FUNCTIONS PER VAR
+// ==============================
+
+// Jarak Baca (cm): 10-100
+function mf_jarak(x) {
+  return {
+    dekat:   trap(x, 10, 10, 20, 35),  // rabun dekat susah baca dekat
+    normal:  tri(x, 25, 40, 65),
+    jauh:    trap(x, 55, 70, 100, 100)  // rabun jauh susah baca jauh
+  };
+}
+
+// Ketajaman (0-100%): rendah = kabur
+function mf_tajam(x) {
+  return {
+    rendah:  trap(x, 0, 0, 25, 50),
+    sedang:  tri(x, 30, 55, 75),
+    tinggi:  trap(x, 60, 80, 100, 100)
+  };
+}
+
+// Kelelahan Mata (0-10)
+function mf_lelah(x) {
+  return {
+    ringan: trap(x, 0, 0, 2, 4),
+    sedang: tri(x, 3, 5, 7),
+    berat:  trap(x, 6, 8, 10, 10)
+  };
+}
+
+// Distorsi / Bayangan Berganda (0-10)
+function mf_distorsi(x) {
+  return {
+    rendah:  trap(x, 0, 0, 1.5, 3.5),
+    sedang:  tri(x, 2.5, 5, 7.5),
+    tinggi:  trap(x, 6, 8, 10, 10)
+  };
+}
+
+// Sakit Kepala (0-10)
+function mf_sakit(x) {
+  return {
+    jarang:  trap(x, 0, 0, 2, 4),
+    kadang:  tri(x, 3, 5, 7),
+    sering:  trap(x, 6, 8, 10, 10)
+  };
+}
+
+// ==============================
+// RULE BASE (Mamdani)
+// Output: { miopi, hiperopi, astigmat } 0-100 scale
+// ==============================
+function evaluateRules(J, T, L, D, S) {
+  const j = mf_jarak(J);
+  const t = mf_tajam(T);
+  const l = mf_lelah(L);
+  const d = mf_distorsi(D);
+  const s = mf_sakit(S);
+
+  const rules = [];
+
+  // === MIOPI RULES (Rabun Jauh) ===
+  // Jarak jauh + ketajaman rendah → miopi tinggi
+  rules.push({ name: "R1: Jarak jauh & ketajaman rendah → Miopi Tinggi", strength: Math.min(j.jauh, t.rendah), output: 'miopi', level: 85 });
+  rules.push({ name: "R2: Jarak jauh & ketajaman sedang → Miopi Sedang", strength: Math.min(j.jauh, t.sedang), output: 'miopi', level: 60 });
+  rules.push({ name: "R3: Jarak jauh & lelah berat → Miopi Sedang", strength: Math.min(j.jauh, l.berat), output: 'miopi', level: 55 });
+  rules.push({ name: "R4: Ketajaman rendah & lelah berat → Miopi Tinggi", strength: Math.min(t.rendah, l.berat), output: 'miopi', level: 75 });
+  rules.push({ name: "R5: Jarak jauh & sakit sering → Miopi Ringan", strength: Math.min(j.jauh, s.sering), output: 'miopi', level: 40 });
+
+  // === HIPEROPI RULES (Rabun Dekat) ===
+  // Jarak dekat + ketajaman rendah → hiperopi tinggi
+  rules.push({ name: "R6: Jarak dekat & ketajaman rendah → Hiperopi Tinggi", strength: Math.min(j.dekat, t.rendah), output: 'hiperopi', level: 85 });
+  rules.push({ name: "R7: Jarak dekat & ketajaman sedang → Hiperopi Sedang", strength: Math.min(j.dekat, t.sedang), output: 'hiperopi', level: 60 });
+  rules.push({ name: "R8: Jarak dekat & lelah berat → Hiperopi Sedang", strength: Math.min(j.dekat, l.berat), output: 'hiperopi', level: 55 });
+  rules.push({ name: "R9: Jarak dekat & sakit sering → Hiperopi Ringan", strength: Math.min(j.dekat, s.sering), output: 'hiperopi', level: 45 });
+  rules.push({ name: "R10: Ketajaman rendah & sakit sering & dekat → Hiperopi Tinggi", strength: Math.min(j.dekat, t.rendah, s.sering), output: 'hiperopi', level: 80 });
+
+  // === ASTIGMAT RULES (Silinder) ===
+  rules.push({ name: "R11: Distorsi tinggi & ketajaman rendah → Astigmat Tinggi", strength: Math.min(d.tinggi, t.rendah), output: 'astigmat', level: 90 });
+  rules.push({ name: "R12: Distorsi tinggi & lelah berat → Astigmat Tinggi", strength: Math.min(d.tinggi, l.berat), output: 'astigmat', level: 80 });
+  rules.push({ name: "R13: Distorsi sedang & lelah sedang → Astigmat Sedang", strength: Math.min(d.sedang, l.sedang), output: 'astigmat', level: 60 });
+  rules.push({ name: "R14: Distorsi tinggi & sakit sering → Astigmat Tinggi", strength: Math.min(d.tinggi, s.sering), output: 'astigmat', level: 75 });
+  rules.push({ name: "R15: Distorsi sedang & ketajaman sedang → Astigmat Sedang", strength: Math.min(d.sedang, t.sedang), output: 'astigmat', level: 55 });
+  rules.push({ name: "R16: Distorsi tinggi & ketajaman rendah & lelah → Astigmat Sangat Tinggi", strength: Math.min(d.tinggi, t.rendah, l.berat), output: 'astigmat', level: 95 });
+  rules.push({ name: "R17: Distorsi rendah & lelah ringan → Astigmat Sangat Rendah", strength: Math.min(d.rendah, l.ringan), output: 'astigmat', level: 10 });
+
+  // === NORMAL / KOMBINASI ===
+  rules.push({ name: "R18: Jarak normal & ketajaman tinggi & lelah ringan → Normal", strength: Math.min(j.normal, t.tinggi, l.ringan), output: 'normal', level: 5 });
+  rules.push({ name: "R19: Ketajaman tinggi & distorsi rendah → Normal", strength: Math.min(t.tinggi, d.rendah), output: 'normal', level: 5 });
+
+  return rules;
+}
+
+// ==============================
+// DEFUZZIFICATION (Centroid/COA)
+// ==============================
+function defuzzify(rules) {
+  // For each output class, compute weighted average (simplified COA)
+  const outputs = { miopi: 0, hiperopi: 0, astigmat: 0, normal: 0 };
+  const weights = { miopi: 0, hiperopi: 0, astigmat: 0, normal: 0 };
+
+  rules.forEach(r => {
+    if (r.strength > 0) {
+      outputs[r.output] += r.strength * r.level;
+      weights[r.output] += r.strength;
+    }
+  });
+
+  const result = {};
+  Object.keys(outputs).forEach(k => {
+    result[k] = weights[k] > 0 ? outputs[k] / weights[k] : 0;
+  });
+
+  return result;
+}
+
+// ==============================
+// UI State
+// ==============================
+const state = { jarak: 30, tajam: 60, lelah: 5, distorsi: 3, sakit: 4 };
+const labels = { jarak: 'cm', tajam: '%', lelah: '/ 10', distorsi: '/ 10', sakit: '/ 10' };
+
+function updateSlider(key, val) {
+  state[key] = parseFloat(val);
+  const suffix = labels[key];
+  document.getElementById('val-' + key).textContent = val + ' ' + suffix;
+  updateMFDisplay();
+}
+
+function updateMFDisplay() {
+  const J = state.jarak, T = state.tajam, L = state.lelah, D = state.distorsi, S = state.sakit;
+
+  const mfJ = mf_jarak(J);
+  const mfT = mf_tajam(T);
+  const mfL = mf_lelah(L);
+  const mfD = mf_distorsi(D);
+  const mfS = mf_sakit(S);
+
+  const items = [
+    { label: 'Jarak Baca', mfs: mfJ, color: '#6382ff' },
+    { label: 'Ketajaman', mfs: mfT, color: '#2dd4bf' },
+    { label: 'Kelelahan', mfs: mfL, color: '#a78bfa' },
+    { label: 'Distorsi', mfs: mfD, color: '#fbbf24' },
+    { label: 'Sakit Kepala', mfs: mfS, color: '#f87171' },
+  ];
+
+  // Show dominant MF per variable
+  const container = document.getElementById('mf-display');
+  container.innerHTML = '';
+
+  // Get rules to show active output
+  const rules = evaluateRules(J, T, L, D, S);
+  const defuzz = defuzzify(rules);
+
+  // Show output MFs
+  const total = defuzz.miopi + defuzz.hiperopi + defuzz.astigmat + defuzz.normal;
+  const outItems = [
+    { name: 'Miopi', val: defuzz.miopi, color: '#6382ff' },
+    { name: 'Hiperopi', val: defuzz.hiperopi, color: '#2dd4bf' },
+    { name: 'Astigmat', val: defuzz.astigmat, color: '#fbbf24' },
+  ];
+
+  outItems.forEach(item => {
+    const norm = total > 0 ? (item.val / total) * 100 : 0;
+    const card = document.createElement('div');
+    card.className = 'mf-card';
+    card.innerHTML = `
+      <div class="mf-label">Derajat Output</div>
+      <div class="mf-name" style="color:${item.color}">${item.name}</div>
+      <div class="mf-bar-wrap"><div class="mf-bar" style="width:${norm.toFixed(1)}%;background:${item.color}"></div></div>
+      <div class="mf-val" style="color:${item.color}">${norm.toFixed(1)}%</div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+// ==============================
+// DIAGNOSE
+// ==============================
+function diagnose() {
+  const J = state.jarak, T = state.tajam, L = state.lelah, D = state.distorsi, S = state.sakit;
+  const rules = evaluateRules(J, T, L, D, S);
+  const defuzz = defuzzify(rules);
+
+  const total = defuzz.miopi + defuzz.hiperopi + defuzz.astigmat + defuzz.normal || 1;
+  const pct = {
+    miopi: (defuzz.miopi / total) * 100,
+    hiperopi: (defuzz.hiperopi / total) * 100,
+    astigmat: (defuzz.astigmat / total) * 100,
+    normal: (defuzz.normal / total) * 100,
+  };
+
+  // Find dominant
+  let dominant = 'normal', domVal = pct.normal;
+  [['miopi', pct.miopi], ['hiperopi', pct.hiperopi], ['astigmat', pct.astigmat]].forEach(([k, v]) => {
+    if (v > domVal) { dominant = k; domVal = v; }
+  });
+
+  const diagnosaMap = {
+    miopi: { label: 'Miopi (Rabun Jauh)', sub: 'Gangguan refraksi — objek jauh tampak kabur', color: '#6382ff',
+      desc: 'Miopi terjadi ketika bola mata terlalu panjang atau kornea terlalu melengkung, sehingga cahaya fokus di depan retina. Penderita dapat melihat objek dekat dengan jelas, namun objek jauh tampak kabur.',
+      recs: ['Pemeriksaan lengkap oleh dokter spesialis mata', 'Kacamata atau lensa kontak dengan lensa minus (-)', 'Pertimbangkan terapi LASIK setelah konsultasi dokter', 'Kurangi waktu layar dan istirahat mata setiap 20 menit', 'Perbanyak aktivitas di luar ruangan (paparan cahaya alami)'] },
+    hiperopi: { label: 'Hiperopi (Rabun Dekat)', sub: 'Gangguan refraksi — objek dekat tampak kabur', color: '#2dd4bf',
+      desc: 'Hiperopi terjadi ketika bola mata terlalu pendek atau kornea kurang melengkung, sehingga cahaya fokus di belakang retina. Penderita kesulitan membaca atau melihat objek yang dekat.',
+      recs: ['Pemeriksaan lengkap oleh dokter spesialis mata', 'Kacamata atau lensa kontak dengan lensa plus (+)', 'Latihan akomodasi mata untuk kasus ringan', 'Atur jarak baca yang ergonomis (30–40 cm)', 'Pertimbangkan lensa progresif untuk usia di atas 40 tahun'] },
+    astigmat: { label: 'Astigmatisme (Silinder)', sub: 'Kelainan kelengkungan kornea — penglihatan buram/ganda', color: '#fbbf24',
+      desc: 'Astigmatisme terjadi karena kornea atau lensa mata memiliki kelengkungan yang tidak merata (lebih seperti bola rugbi daripada bola basket). Akibatnya, cahaya tidak fokus pada satu titik di retina, menyebabkan penglihatan buram atau berganda.',
+      recs: ['Pemeriksaan refraksi dan topografi kornea', 'Kacamata dengan lensa silindris (lensa toric)', 'Lensa kontak toric untuk koreksi astigmat', 'Hindari menggosok mata berlebihan (risiko keratokonus)', 'Operasi refraktif LASIK atau PRK setelah evaluasi dokter'] },
+    normal: { label: 'Penglihatan Normal', sub: 'Tidak terdeteksi gangguan refraksi signifikan', color: '#34d399',
+      desc: 'Berdasarkan gejala yang diinputkan, sistem tidak mendeteksi pola gangguan refraksi yang signifikan. Penglihatan tampak dalam batas normal.',
+      recs: ['Tetap lakukan pemeriksaan mata rutin setiap 1-2 tahun', 'Jaga kesehatan mata dengan nutrisi yang baik (vitamin A)', 'Hindari paparan layar berlebihan tanpa istirahat', 'Gunakan kacamata pelindung saat beraktivitas berisiko'] }
+  };
+
+  const d = diagnosaMap[dominant];
+
+  document.getElementById('res-diagnosis').textContent = d.label;
+  document.getElementById('res-sub').textContent = d.sub;
+  document.getElementById('res-conf').textContent = Math.round(domVal) + '%';
+
+  // Bars
+  const barsData = [
+    { label: 'Astigmat (Silinder)', val: pct.astigmat, color: '#fbbf24' },
+    { label: 'Miopi (Rabun Jauh)', val: pct.miopi, color: '#6382ff' },
+    { label: 'Hiperopi (Rabun Dekat)', val: pct.hiperopi, color: '#2dd4bf' },
+  ];
+
+  document.getElementById('res-bars').innerHTML = barsData.map(b => `
+    <div class="res-bar-row">
+      <div class="res-bar-label">${b.label}</div>
+      <div class="res-bar-track"><div class="res-bar-fill" style="width:${b.val.toFixed(1)}%;background:${b.color}"></div></div>
+      <div class="res-bar-pct" style="color:${b.color}">${b.val.toFixed(1)}%</div>
+    </div>
+  `).join('');
+
+  document.getElementById('res-desc').innerHTML = `<p>${d.desc}</p>`;
+
+  // Active rules
+  const activeRules = rules.filter(r => r.strength > 0.01).sort((a, b) => b.strength - a.strength).slice(0, 6);
+  document.getElementById('res-rules').innerHTML = activeRules.map(r => `
+    <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--c-border)">
+      <div style="min-width:80px">
+        <div style="height:5px;background:var(--c-surface2);border-radius:3px">
+          <div style="height:100%;width:${(r.strength*100).toFixed(0)}%;background:${r.output==='astigmat'?'#fbbf24':r.output==='miopi'?'#6382ff':'#2dd4bf'};border-radius:3px"></div>
+        </div>
+        <div style="font-size:10px;color:var(--c-dim);margin-top:3px">${(r.strength*100).toFixed(0)}%</div>
+      </div>
+      <div style="font-size:12px;color:var(--c-muted)">${r.name}</div>
+    </div>
+  `).join('');
+
+  // Recs
+  document.getElementById('res-recs').innerHTML = d.recs.map(rec => `
+    <div class="rec-item"><div class="rec-dot"></div><span>${rec}</span></div>
+  `).join('');
+
+  const rs = document.getElementById('result-section');
+  rs.style.display = 'block';
+  rs.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Init
+updateMFDisplay();
+</script>
+</body>
+</html>

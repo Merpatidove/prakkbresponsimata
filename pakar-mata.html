@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistem Pakar — Diagnosa Gangguan Mata</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --c-bg: #0a0e1a;
+    --c-surface: #111827;
+    --c-surface2: #1a2236;
+    --c-border: rgba(99,130,255,0.15);
+    --c-border2: rgba(99,130,255,0.3);
+    --c-accent: #6382ff;
+    --c-accent2: #a78bfa;
+    --c-teal: #2dd4bf;
+    --c-amber: #fbbf24;
+    --c-red: #f87171;
+    --c-green: #34d399;
+    --c-text: #e2e8f0;
+    --c-muted: #94a3b8;
+    --c-dim: #475569;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--c-bg);
+    color: var(--c-text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(99,130,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99,130,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; position: relative; z-index: 1; }
+
+  .nav-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;
+  }
+
+  .badge {
+    display: inline-block;
+    background: rgba(99,130,255,0.12);
+    border: 1px solid rgba(99,130,255,0.3);
+    color: #a5b4fc;
+    font-size: 11px; font-weight: 600; letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 6px 16px; border-radius: 20px;
+  }
+
+  .nav-link {
+    display: inline-flex; align-items: center; gap: 8px;
+    color: var(--c-accent); font-size: 14px; font-weight: 500;
+    text-decoration: none; padding: 10px 20px;
+    border: 1px solid rgba(99,130,255,0.3); border-radius: 8px;
+    transition: all 0.2s;
+  }
+  .nav-link:hover { background: rgba(99,130,255,0.1); }
+
+  header { text-align: center; padding: 3rem 0 2.5rem; }
+
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    line-height: 1.15; color: #fff; margin-bottom: 1rem;
+  }
+
+  h1 em {
+    font-style: italic;
+    background: linear-gradient(135deg, #6382ff, #a78bfa, #2dd4bf);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+
+  .subtitle { color: var(--c-muted); font-size: 1rem; max-width: 520px; margin: 0 auto; line-height: 1.7; }
+
+  .info-bar { display: flex; gap: 1rem; margin: 2rem 0; flex-wrap: wrap; }
+
+  .info-chip {
+    flex: 1; min-width: 180px;
+    background: var(--c-surface); border: 1px solid var(--c-border);
+    border-radius: 12px; padding: 1rem 1.25rem;
+    display: flex; align-items: center; gap: 12px;
+  }
+
+  .chip-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .chip-label { font-size: 11px; color: var(--c-dim); text-transform: uppercase; letter-spacing: 1px; }
+  .chip-val { font-size: 14px; font-weight: 500; color: var(--c-text); margin-top: 2px; }
+
+  .section {
+    background: var(--c-surface); border: 1px solid var(--c-border);
+    border-radius: 16px; padding: 1.75rem; margin-bottom: 1.25rem;
+  }
+
+  .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; }
+
+  .section-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: rgba(99,130,255,0.15); border: 1px solid rgba(99,130,255,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; color: var(--c-accent); flex-shrink: 0;
+  }
+
+  .section-title { font-size: 1rem; font-weight: 600; color: var(--c-text); }
+
+  /* Progress */
+  .prog-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .prog-text { font-size: 13px; font-weight: 600; color: var(--c-text); }
+  .prog-count { font-size: 12px; color: var(--c-muted); }
+  .prog-track { height: 5px; background: var(--c-surface2); border-radius: 3px; }
+  .prog-fill { height: 100%; background: linear-gradient(90deg, var(--c-accent), var(--c-accent2)); border-radius: 3px; transition: width 0.4s cubic-bezier(0.4,0,0.2,1); }
+
+  /* Question */
+  .q-top { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px; margin-bottom: 1rem; }
+
+  .q-category-badge {
+    display: inline-flex; align-items: center;
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;
+    padding: 5px 12px; border-radius: 20px;
+    background: rgba(99,130,255,0.12); border: 1px solid rgba(99,130,255,0.25); color: #a5b4fc;
+  }
+
+  .q-cf-tag {
+    font-size: 10px; color: var(--c-dim);
+    background: var(--c-surface2); border: 1px solid var(--c-border);
+    padding: 4px 10px; border-radius: 20px;
+  }
+
+  .q-text { font-family: 'DM Serif Display', serif; font-size: 1.2rem; color: #fff; line-height: 1.45; margin-bottom: 0.5rem; }
+  .q-hint { font-size: 13px; color: var(--c-muted); margin-bottom: 1.5rem; line-height: 1.6; }
+
+  /* Options */
+  .options { display: flex; flex-direction: column; gap: 10px; }
+
+  .opt-btn {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 18px;
+    background: var(--c-surface2); border: 1px solid var(--c-border);
+    border-radius: 12px; cursor: pointer; text-align: left;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--c-text);
+    transition: all 0.18s; width: 100%;
+  }
+  .opt-btn:hover { border-color: var(--c-accent); background: rgba(99,130,255,0.07); }
+  .opt-btn.selected { border-color: var(--c-accent); background: rgba(99,130,255,0.15); color: #fff; }
+
+  .opt-indicator {
+    width: 26px; height: 26px; border-radius: 8px;
+    border: 1px solid var(--c-border2); background: var(--c-surface);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; color: var(--c-dim); flex-shrink: 0; transition: all 0.18s;
+  }
+  .opt-btn.selected .opt-indicator { background: var(--c-accent); border-color: var(--c-accent); color: #fff; }
+
+  .opt-label { flex: 1; }
+  .opt-cf { font-size: 11px; color: var(--c-dim); margin-top: 3px; }
+  .opt-btn.selected .opt-cf { color: rgba(165,180,252,0.7); }
+
+  /* Nav buttons */
+  .q-nav { display: flex; justify-content: space-between; gap: 1rem; margin-top: 1.25rem; }
+
+  .btn-back {
+    padding: 12px 24px; background: transparent;
+    border: 1px solid var(--c-border2); border-radius: 10px;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+    color: var(--c-muted); cursor: pointer; transition: all 0.18s;
+  }
+  .btn-back:hover { color: var(--c-text); border-color: var(--c-accent); }
+  .btn-back:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .btn-next {
+    flex: 1; padding: 12px 24px;
+    background: linear-gradient(135deg, #6382ff, #8b5cf6);
+    border: none; border-radius: 10px;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+    color: white; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-next:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99,130,255,0.35); }
+  .btn-next:active { transform: translateY(0); }
+  .btn-next:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* Result */
+  #result-section { display: none; }
+
+  .result-card {
+    background: var(--c-surface); border: 1px solid var(--c-border2);
+    border-radius: 16px; padding: 2rem;
+    position: relative; overflow: hidden; margin-bottom: 1.25rem;
+  }
+  .result-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, #6382ff, #a78bfa, #2dd4bf);
+  }
+
+  .result-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+
+  .result-diagnosis { font-family: 'DM Serif Display', serif; font-size: 1.8rem; color: #fff; line-height: 1.2; }
+
+  .result-confidence { text-align: right; }
+  .conf-label { font-size: 11px; color: var(--c-dim); text-transform: uppercase; letter-spacing: 1px; }
+  .conf-value {
+    font-size: 2rem; font-weight: 700;
+    background: linear-gradient(135deg, #6382ff, #2dd4bf);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+
+  /* Bars */
+  .res-bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .res-bar-label { font-size: 13px; color: var(--c-muted); width: 160px; flex-shrink: 0; }
+  .res-bar-track { flex: 1; height: 8px; background: var(--c-surface2); border-radius: 4px; }
+  .res-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
+  .res-bar-pct { font-size: 13px; font-weight: 600; width: 45px; text-align: right; }
+
+  /* Desc block */
+  .result-desc { background: var(--c-surface2); border-radius: 10px; padding: 1.25rem; margin-bottom: 1.25rem; border-left: 3px solid var(--c-accent); }
+  .result-desc p { font-size: 14px; color: var(--c-muted); line-height: 1.7; }
+
+  /* Severity pill */
+  .sev-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600;
+    padding: 5px 14px; border-radius: 20px; margin-bottom: 1.25rem;
+  }
+
+  /* Evidence table */
+  .ev-table { width: 100%; border-collapse: collapse; }
+  .ev-table th { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--c-dim); padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--c-border); }
+  .ev-table td { font-size: 12px; padding: 9px 10px; border-bottom: 1px solid var(--c-border); vertical-align: top; color: var(--c-muted); }
+  .ev-table tr:last-child td { border-bottom: none; }
+  .ev-yes { color: var(--c-green) !important; font-weight: 600; }
+  .ev-no  { color: var(--c-dim) !important; }
+
+  /* Trace */
+  .trace-box {
+    background: var(--c-surface2); border: 1px solid var(--c-border);
+    border-radius: 10px; padding: 1.25rem; margin-bottom: 1.25rem;
+    font-size: 13px; color: var(--c-muted); line-height: 1.8;
+  }
+
+  /* Recs */
+  .recs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+
+  .rec-card { background: var(--c-surface2); border: 1px solid var(--c-border); border-radius: 10px; padding: 1rem; }
+  .rec-card-icon { font-size: 20px; margin-bottom: 8px; }
+  .rec-card-title { font-size: 13px; font-weight: 600; color: var(--c-text); margin-bottom: 4px; }
+  .rec-card-desc { font-size: 12px; color: var(--c-muted); line-height: 1.5; }
+
+  /* Rec list style (for rec items) */
+  .result-recs h4 { font-size: 13px; font-weight: 600; color: var(--c-text); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+  .rec-list { display: flex; flex-direction: column; gap: 8px; }
+  .rec-item { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--c-muted); line-height: 1.5; }
+  .rec-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--c-teal); flex-shrink: 0; margin-top: 5px; }
+
+  /* Restart */
+  .btn-restart {
+    width: 100%; padding: 1rem; background: transparent;
+    border: 1px solid var(--c-border2); border-radius: 12px;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+    color: var(--c-accent); cursor: pointer; transition: all 0.2s; margin-top: 1rem;
+  }
+  .btn-restart:hover { background: rgba(99,130,255,0.1); border-color: var(--c-accent); }
+
+  /* KB section */
+  .kb-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 1rem; }
+
+  .kb-card { background: var(--c-surface2); border: 1px solid var(--c-border); border-radius: 10px; padding: 1rem; }
+  .kb-card h4 { font-size: 12px; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .kb-card ul { list-style: none; }
+  .kb-card li { font-size: 12px; color: var(--c-muted); padding: 2px 0; display: flex; gap: 6px; }
+  .kb-card li::before { content: '·'; color: var(--c-dim); flex-shrink: 0; }
+
+  /* Method info */
+  .method-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 1rem; }
+  .method-card { background: var(--c-surface2); border: 1px solid var(--c-border); border-radius: 10px; padding: 1rem; }
+  .method-card h4 { font-size: 12px; color: var(--c-accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .method-card p { font-size: 13px; color: var(--c-muted); line-height: 1.5; }
+
+  footer { text-align: center; padding: 2rem 0; color: var(--c-dim); font-size: 12px; border-top: 1px solid var(--c-border); margin-top: 2rem; }
+
+  @media (max-width: 600px) {
+    .result-confidence { text-align: left; }
+    .kb-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="nav-row">
+    <div class="badge">Sistem Pakar — Forward Chaining</div>
+    <a href="fuzzy-mata.html" class="nav-link">← Beralih ke Sistem Fuzzy</a>
+  </div>
+
+  <header>
+    <h1>Konsultasi <em>Gangguan Refraksi</em><br>Mata Berbasis Pakar</h1>
+    <p class="subtitle">Sistem pakar berbasis Forward Chaining dan Certainty Factor (CF) untuk mendiagnosa silinder, rabun jauh, dan rabun dekat melalui sesi tanya-jawab interaktif.</p>
+  </header>
+
+  <div class="info-bar">
+    <div class="info-chip">
+      <div class="chip-icon" style="background:rgba(99,130,255,0.1);">🔗</div>
+      <div><div class="chip-label">Metode</div><div class="chip-val">Forward Chaining</div></div>
+    </div>
+    <div class="info-chip">
+      <div class="chip-icon" style="background:rgba(45,212,191,0.1);">📊</div>
+      <div><div class="chip-label">Kepastian</div><div class="chip-val">Certainty Factor (CF)</div></div>
+    </div>
+    <div class="info-chip">
+      <div class="chip-icon" style="background:rgba(251,191,36,0.1);">❓</div>
+      <div><div class="chip-label">Pertanyaan</div><div class="chip-val">18 Gejala Diagnostik</div></div>
+    </div>
+    <div class="info-chip">
+      <div class="chip-icon" style="background:rgba(167,139,250,0.1);">👁️</div>
+      <div><div class="chip-label">Gangguan</div><div class="chip-val">3 Kondisi Refraksi</div></div>
+    </div>
+  </div>
+
+  <!-- QUIZ -->
+  <div id="quiz-section">
+
+    <div class="section">
+      <div class="prog-label-row">
+        <span class="prog-text" id="prog-label">Pertanyaan 1 dari 18</span>
+        <span class="prog-count" id="prog-count">0 / 18</span>
+      </div>
+      <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+    </div>
+
+    <div class="section" id="question-card">
+      <div class="q-top">
+        <div class="q-category-badge" id="q-category">Kategori</div>
+        <div class="q-cf-tag" id="q-cf-tag">Bobot: —</div>
+      </div>
+      <div class="q-text" id="q-text">Memuat...</div>
+      <div class="q-hint" id="q-hint"></div>
+      <div class="options" id="q-options"></div>
+    </div>
+
+    <div class="q-nav">
+      <button class="btn-back" id="btn-back" onclick="prevQ()" disabled>← Kembali</button>
+      <button class="btn-next" id="btn-next" onclick="nextQ()" disabled>Pilih jawaban dulu</button>
+    </div>
+
+  </div>
+
+  <!-- RESULT -->
+  <div id="result-section">
+    <div class="result-card">
+      <div class="result-top">
+        <div>
+          <div style="font-size:11px;color:var(--c-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Diagnosa Utama</div>
+          <div class="result-diagnosis" id="res-diagnosis">—</div>
+          <div style="font-size:13px;color:var(--c-muted);margin-top:4px;" id="res-sub">—</div>
+        </div>
+        <div class="result-confidence">
+          <div class="conf-label">Keyakinan</div>
+          <div class="conf-value" id="res-conf">—</div>
+        </div>
+      </div>
+
+      <div class="section-header" style="margin-bottom:0.75rem">
+        <div class="section-num">CF</div>
+        <div class="section-title">Certainty Factor per Kondisi</div>
+      </div>
+      <div id="res-bars" style="margin-bottom:1.5rem"></div>
+
+      <div id="res-severity" class="sev-badge"></div>
+
+      <div class="result-desc" id="res-desc"><p>—</p></div>
+
+      <div class="section-header" style="margin-bottom:0.75rem">
+        <div class="section-num">📋</div>
+        <div class="section-title">Gejala yang Dikonfirmasi</div>
+      </div>
+      <table class="ev-table" style="margin-bottom:1.5rem">
+        <thead><tr><th>Pertanyaan</th><th>Status</th><th>CF</th><th>Tag Relevansi</th></tr></thead>
+        <tbody id="ev-body"></tbody>
+      </table>
+
+      <div class="section-header" style="margin-bottom:0.75rem">
+        <div class="section-num">⛓</div>
+        <div class="section-title">Jejak Inferensi Forward Chaining</div>
+      </div>
+      <div class="trace-box" id="res-trace"></div>
+
+      <div class="section-header" style="margin-bottom:0.75rem">
+        <div class="section-num">✦</div>
+        <div class="section-title">Rekomendasi Tindakan</div>
+      </div>
+      <div class="recs-grid" id="res-recs" style="margin-bottom:0"></div>
+
+      <button class="btn-restart" onclick="restart()">↺ Mulai Konsultasi Ulang</button>
+    </div>
+  </div>
+
+  <!-- KB -->
+  <div class="section" id="kb-section">
+    <div class="section-header">
+      <div class="section-num">📖</div>
+      <div class="section-title">Basis Pengetahuan Pakar</div>
+    </div>
+    <div class="kb-grid">
+      <div class="kb-card">
+        <h4 style="color:var(--c-accent)">Miopi — Rabun Jauh</h4>
+        <ul>
+          <li>Objek jauh tampak kabur</li><li>Objek dekat masih jelas</li>
+          <li>Menyipitkan mata saat melihat jauh</li><li>Sakit kepala sore/malam</li>
+          <li>Lelah mata saat berkendara</li><li>Memburuk di usia remaja</li>
+        </ul>
+      </div>
+      <div class="kb-card">
+        <h4 style="color:var(--c-teal)">Hiperopi — Rabun Dekat</h4>
+        <ul>
+          <li>Objek dekat tampak kabur</li><li>Sulit membaca teks kecil</li>
+          <li>Sakit kepala saat membaca</li><li>Mata lelah setelah membaca</li>
+          <li>Menjauhkan buku dari mata</li><li>Lebih jelas melihat jauh</li>
+        </ul>
+      </div>
+      <div class="kb-card">
+        <h4 style="color:var(--c-amber)">Astigmat — Silinder</h4>
+        <ul>
+          <li>Buram di semua jarak</li><li>Garis lurus tampak bengkok</li>
+          <li>Bayangan ganda (ghosting)</li><li>Silau berlebih malam hari</li>
+          <li>Sulit mengemudi malam</li><li>Sakit kepala dan mata tegang</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Method explanation -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">?</div>
+      <div class="section-title">Cara Kerja Sistem Pakar Forward Chaining + CF</div>
+    </div>
+    <div class="method-grid">
+      <div class="method-card">
+        <h4>1. Akuisisi Fakta</h4>
+        <p>Pengguna menjawab pertanyaan bergejala. Setiap jawaban menjadi fakta dengan nilai CF yang mencerminkan kekuatan bukti.</p>
+      </div>
+      <div class="method-card">
+        <h4>2. Forward Chaining</h4>
+        <p>Mesin inferensi menelusuri dari fakta ke kesimpulan. Setiap gejala yang dikonfirmasi mengaktifkan aturan yang relevan.</p>
+      </div>
+      <div class="method-card">
+        <h4>3. Kombinasi CF</h4>
+        <p>CF dari setiap aturan digabungkan dengan formula: CF(A,B) = CF_A + CF_B × (1 − CF_A) untuk menghindari nilai > 1.</p>
+      </div>
+      <div class="method-card">
+        <h4>4. Kesimpulan</h4>
+        <p>Diagnosa dengan CF tertinggi dipilih sebagai output utama, disertai tingkat keyakinan dan rekomendasi tindakan lanjut.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Sistem Pakar Diagnosa Mata · Forward Chaining + Certainty Factor · Untuk keperluan edukasi — bukan pengganti pemeriksaan dokter mata
+  </footer>
+
+</div>
+<script>
+const questions = [
+  { id:'q1', category:'Penglihatan Jarak', cfWeight:0.9,
+    text:'Bagaimana kejelasan penglihatan Anda saat melihat objek yang jauh (papan tulis, rambu jalan, TV)?',
+    hint:'Contoh: apakah tulisan pada papan tulis tampak kabur dari jarak normal?',
+    options:[
+      {label:'Sangat kabur — hampir tidak bisa membaca',cf:1.0,tags:['miopi_tinggi']},
+      {label:'Cukup kabur — sedikit kesulitan',cf:0.6,tags:['miopi_sedang']},
+      {label:'Normal — terlihat dengan jelas',cf:0,tags:[]},
+      {label:'Justru lebih jelas dari biasanya',cf:0.5,tags:['hiperopi_hint']},
+    ]
+  },
+  { id:'q2', category:'Penglihatan Jarak', cfWeight:0.8,
+    text:'Apakah Anda perlu menyipitkan mata untuk membaca sesuatu yang jauh?',
+    hint:'Menyipitkan mata membantu fokus sementara dengan memperkecil bukaan pupil efektif.',
+    options:[
+      {label:'Ya, selalu',cf:1.0,tags:['miopi_tinggi']},
+      {label:'Ya, sesekali',cf:0.5,tags:['miopi_sedang']},
+      {label:'Tidak pernah',cf:0,tags:[]},
+    ]
+  },
+  { id:'q3', category:'Penglihatan Dekat', cfWeight:0.9,
+    text:'Bagaimana kemampuan Anda membaca teks kecil (buku, label) dari jarak normal ±30 cm?',
+    hint:'Jarak baca normal adalah sekitar 30–35 cm dari mata.',
+    options:[
+      {label:'Sangat sulit — teks tampak kabur',cf:1.0,tags:['hiperopi_tinggi']},
+      {label:'Agak sulit — perlu fokus ekstra',cf:0.6,tags:['hiperopi_sedang']},
+      {label:'Normal — tidak ada masalah',cf:0,tags:[]},
+      {label:'Sangat mudah — lebih nyaman baca dekat',cf:0.3,tags:['miopi_hint']},
+    ]
+  },
+  { id:'q4', category:'Penglihatan Dekat', cfWeight:0.85,
+    text:'Apakah Anda perlu menjauhkan buku atau ponsel dari wajah agar bisa membaca lebih jelas?',
+    hint:'Penderita hiperopi sering tanpa sadar menjauhkan objek bacaan.',
+    options:[
+      {label:'Ya, selalu menjauhkan buku',cf:1.0,tags:['hiperopi_tinggi']},
+      {label:'Ya, kadang-kadang',cf:0.5,tags:['hiperopi_sedang']},
+      {label:'Tidak — justru ingin mendekatkan',cf:0.4,tags:['miopi_hint']},
+      {label:'Tidak ada masalah',cf:0,tags:[]},
+    ]
+  },
+  { id:'q5', category:'Distorsi Visual', cfWeight:0.95,
+    text:'Apakah garis lurus (tiang listrik, bingkai pintu) tampak bengkok, miring, atau tidak lurus?',
+    hint:'Ini adalah tanda khas astigmatisme — kornea tidak sferis sempurna sehingga mengubah bentuk objek.',
+    options:[
+      {label:'Ya, terlihat sangat bengkok',cf:1.0,tags:['astigmat_tinggi']},
+      {label:'Ya, sedikit melengkung',cf:0.65,tags:['astigmat_sedang']},
+      {label:'Tidak — semua terlihat lurus',cf:0,tags:[]},
+    ]
+  },
+  { id:'q6', category:'Distorsi Visual', cfWeight:0.9,
+    text:'Apakah Anda melihat bayangan ganda (ghosting) atau penglihatan bertumpuk pada huruf atau lampu?',
+    hint:'Ghost image adalah tanda kuat astigmatisme — cahaya difokuskan di beberapa titik sekaligus.',
+    options:[
+      {label:'Ya, sering melihat bayangan berganda',cf:1.0,tags:['astigmat_tinggi']},
+      {label:'Ya, terutama pada malam hari',cf:0.7,tags:['astigmat_sedang']},
+      {label:'Kadang-kadang, tidak selalu',cf:0.4,tags:['astigmat_ringan']},
+      {label:'Tidak pernah',cf:0,tags:[]},
+    ]
+  },
+  { id:'q7', category:'Penglihatan Malam', cfWeight:0.8,
+    text:'Bagaimana penglihatan Anda di malam hari atau saat cahaya redup?',
+    hint:'Astigmat dan miopi memperburuk penglihatan malam karena aberasi optik meningkat saat pupil melebar.',
+    options:[
+      {label:'Sangat buruk — lampu tampak berbentuk bintang/halo besar',cf:1.0,tags:['astigmat_tinggi','miopi_hint']},
+      {label:'Agak sulit — lampu tampak menyilaukan berlebih',cf:0.65,tags:['astigmat_sedang']},
+      {label:'Normal saja',cf:0,tags:[]},
+    ]
+  },
+  { id:'q8', category:'Penglihatan Malam', cfWeight:0.75,
+    text:'Apakah Anda kesulitan mengemudi atau beraktivitas malam hari karena silau lampu kendaraan?',
+    hint:'Silau berlebih di malam hari bisa mengindikasikan astigmatisme yang belum terkoreksi.',
+    options:[
+      {label:'Ya, sangat kesulitan',cf:1.0,tags:['astigmat_tinggi']},
+      {label:'Ya, agak terganggu',cf:0.5,tags:['astigmat_sedang']},
+      {label:'Tidak ada masalah',cf:0,tags:[]},
+    ]
+  },
+  { id:'q9', category:'Sakit Kepala', cfWeight:0.7,
+    text:'Seberapa sering Anda mengalami sakit kepala yang berkaitan dengan aktivitas melihat (membaca, layar)?',
+    hint:'Sakit kepala yang memburuk sore hari sering berkaitan dengan kelainan refraksi tidak terkoreksi.',
+    options:[
+      {label:'Hampir setiap hari',cf:1.0,tags:['hiperopi_sedang','astigmat_sedang']},
+      {label:'Beberapa kali seminggu',cf:0.65,tags:['hiperopi_ringan','astigmat_ringan']},
+      {label:'Jarang (< 1x seminggu)',cf:0.2,tags:[]},
+      {label:'Tidak pernah',cf:0,tags:[]},
+    ]
+  },
+  { id:'q10', category:'Sakit Kepala', cfWeight:0.65,
+    text:'Di bagian mana sakit kepala biasanya terasa paling dominan?',
+    hint:'Lokasi sakit kepala dapat memberikan petunjuk jenis gangguan refraksi.',
+    options:[
+      {label:'Dahi dan sekitar mata (frontal)',cf:0.7,tags:['hiperopi_sedang','astigmat_sedang']},
+      {label:'Pelipis atau samping kepala',cf:0.5,tags:['miopi_ringan','astigmat_ringan']},
+      {label:'Bagian belakang kepala',cf:0.3,tags:['miopi_ringan']},
+      {label:'Tidak ada sakit kepala',cf:0,tags:[]},
+    ]
+  },
+  { id:'q11', category:'Kelelahan Mata', cfWeight:0.7,
+    text:'Berapa lama Anda dapat membaca atau menatap layar tanpa merasakan ketidaknyamanan pada mata?',
+    hint:'Kelelahan mata dini adalah tanda akomodasi berlebih, sering pada hiperopi dan astigmat.',
+    options:[
+      {label:'Kurang dari 30 menit',cf:1.0,tags:['hiperopi_tinggi','astigmat_sedang']},
+      {label:'30 menit – 1 jam',cf:0.65,tags:['hiperopi_sedang','astigmat_ringan']},
+      {label:'1–2 jam tanpa masalah',cf:0.2,tags:[]},
+      {label:'Lebih dari 2 jam tanpa masalah',cf:0,tags:[]},
+    ]
+  },
+  { id:'q12', category:'Kelelahan Mata', cfWeight:0.65,
+    text:'Apakah mata Anda terasa "tegang" atau berat setelah bekerja dengan layar atau buku?',
+    hint:'Eye strain atau asthenopia adalah gejala umum kelainan refraksi yang belum dikoreksi.',
+    options:[
+      {label:'Ya, selalu terasa berat dan tegang',cf:1.0,tags:['astigmat_sedang','hiperopi_sedang']},
+      {label:'Ya, setelah beberapa jam',cf:0.5,tags:['astigmat_ringan','hiperopi_ringan']},
+      {label:'Kadang-kadang saja',cf:0.2,tags:[]},
+      {label:'Tidak pernah',cf:0,tags:[]},
+    ]
+  },
+  { id:'q13', category:'Riwayat Keluarga', cfWeight:0.6,
+    text:'Apakah ada anggota keluarga inti yang memakai kacamata sejak usia muda?',
+    hint:'Genetik berperan besar — risiko meningkat 2–3x jika orang tua memiliki kelainan refraksi.',
+    options:[
+      {label:'Ya, kedua orang tua berkacamata',cf:1.0,tags:['miopi_hint','hiperopi_hint','astigmat_hint']},
+      {label:'Ya, salah satu orang tua',cf:0.5,tags:['miopi_hint','astigmat_hint']},
+      {label:'Tidak ada riwayat keluarga',cf:0,tags:[]},
+    ]
+  },
+  { id:'q14', category:'Usia & Onset', cfWeight:0.55,
+    text:'Pada usia berapa Anda pertama kali menyadari ada masalah penglihatan?',
+    hint:'Miopi sering muncul usia 8–14 tahun. Hiperopi bisa dari lahir. Astigmat bisa kapan saja.',
+    options:[
+      {label:'Anak-anak (< 12 tahun)',cf:0.8,tags:['miopi_hint','hiperopi_hint']},
+      {label:'Remaja (12–18 tahun)',cf:1.0,tags:['miopi_tinggi']},
+      {label:'Dewasa muda (18–35 tahun)',cf:0.5,tags:['astigmat_hint']},
+      {label:'Dewasa (> 35 tahun)',cf:0.6,tags:['hiperopi_hint']},
+    ]
+  },
+  { id:'q15', category:'Kebiasaan Visual', cfWeight:0.5,
+    text:'Berapa jam per hari Anda menghabiskan waktu di depan layar (ponsel, komputer, TV)?',
+    hint:'Paparan layar berkepanjangan dikaitkan dengan perkembangan dan memburuknya miopi.',
+    options:[
+      {label:'Lebih dari 8 jam/hari',cf:0.8,tags:['miopi_hint']},
+      {label:'4–8 jam/hari',cf:0.5,tags:['miopi_hint']},
+      {label:'2–4 jam/hari',cf:0.2,tags:[]},
+      {label:'Kurang dari 2 jam/hari',cf:0,tags:[]},
+    ]
+  },
+  { id:'q16', category:'Kebiasaan Visual', cfWeight:0.75,
+    text:'Apakah Anda sudah pernah memakai kacamata atau lensa kontak sebelumnya?',
+    hint:'Riwayat penggunaan kacamata mengonfirmasi adanya gangguan refraksi sebelumnya.',
+    options:[
+      {label:'Ya, kacamata minus (miopi)',cf:1.0,tags:['miopi_tinggi']},
+      {label:'Ya, kacamata plus (hiperopi)',cf:1.0,tags:['hiperopi_tinggi']},
+      {label:'Ya, kacamata silinder/astigmat',cf:1.0,tags:['astigmat_tinggi']},
+      {label:'Ya, tapi tidak tahu jenisnya',cf:0.5,tags:['miopi_hint','hiperopi_hint','astigmat_hint']},
+      {label:'Belum pernah',cf:0,tags:[]},
+    ]
+  },
+  { id:'q17', category:'Gejala Lanjutan', cfWeight:0.9,
+    text:'Apakah penglihatan Anda tampak buram di SEMUA jarak, baik dekat maupun jauh?',
+    hint:'Buram di semua jarak adalah tanda khas astigmatisme, berbeda dengan miopi/hiperopi.',
+    options:[
+      {label:'Ya, buram di semua jarak',cf:1.0,tags:['astigmat_tinggi']},
+      {label:'Buram jauh, jelas dekat',cf:0.8,tags:['miopi_tinggi']},
+      {label:'Buram dekat, jelas jauh',cf:0.8,tags:['hiperopi_tinggi']},
+      {label:'Tidak ada masalah yang jelas',cf:0,tags:[]},
+    ]
+  },
+  { id:'q18', category:'Gejala Lanjutan', cfWeight:0.7,
+    text:'Apakah Anda merasakan perbedaan ketajaman yang signifikan antara mata kanan dan kiri?',
+    hint:'Perbedaan besar antar kedua mata sering dikaitkan dengan astigmatisme atau ambliopia.',
+    options:[
+      {label:'Ya, perbedaan sangat besar',cf:0.8,tags:['astigmat_sedang']},
+      {label:'Ya, sedikit berbeda',cf:0.4,tags:['astigmat_ringan']},
+      {label:'Tidak — sama saja',cf:0,tags:[]},
+    ]
+  },
+];
+
+// CF Engine
+function combineCF(a, b) {
+  if (a >= 0 && b >= 0) return a + b * (1 - a);
+  if (a < 0 && b < 0)   return a + b * (1 + a);
+  return (a + b) / (1 - Math.min(Math.abs(a), Math.abs(b)));
+}
+
+const tagMap = {
+  miopi_tinggi:{d:'miopi',w:1.0}, miopi_sedang:{d:'miopi',w:0.6},
+  miopi_ringan:{d:'miopi',w:0.3}, miopi_hint:{d:'miopi',w:0.15},
+  hiperopi_tinggi:{d:'hiperopi',w:1.0}, hiperopi_sedang:{d:'hiperopi',w:0.6},
+  hiperopi_ringan:{d:'hiperopi',w:0.3}, hiperopi_hint:{d:'hiperopi',w:0.15},
+  astigmat_tinggi:{d:'astigmat',w:1.0}, astigmat_sedang:{d:'astigmat',w:0.6},
+  astigmat_ringan:{d:'astigmat',w:0.3}, astigmat_hint:{d:'astigmat',w:0.15},
+};
+
+function calculateCF(answers) {
+  const acc = { miopi:0, hiperopi:0, astigmat:0 };
+  answers.forEach(ans => {
+    const q = questions[ans.qIdx];
+    const opt = q.options[ans.optIdx];
+    opt.tags.forEach(tag => {
+      const m = tagMap[tag];
+      if (m) acc[m.d] = combineCF(acc[m.d], opt.cf * q.cfWeight * m.w);
+    });
+  });
+  Object.keys(acc).forEach(k => { acc[k] = Math.max(0, Math.min(1, acc[k])); });
+  return acc;
+}
+
+// UI State
+let currentQ = 0, answers = [];
+
+function render() {
+  const q = questions[currentQ];
+  const pct = (currentQ / questions.length) * 100;
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-count').textContent = currentQ + ' / ' + questions.length;
+  document.getElementById('prog-label').textContent = 'Pertanyaan ' + (currentQ+1) + ' dari ' + questions.length;
+  document.getElementById('q-category').textContent = q.category;
+  document.getElementById('q-cf-tag').textContent = 'Bobot CF: ' + q.cfWeight;
+  document.getElementById('q-text').textContent = q.text;
+  document.getElementById('q-hint').textContent = q.hint;
+
+  const existing = answers.find(a => a.qIdx === currentQ);
+  const opts = document.getElementById('q-options');
+  opts.innerHTML = '';
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'opt-btn' + (existing && existing.optIdx === i ? ' selected' : '');
+    btn.onclick = () => selectOpt(i);
+    btn.innerHTML = `<div class="opt-indicator">${String.fromCharCode(65+i)}</div>
+      <div class="opt-label">
+        <div>${opt.label}</div>
+        <div class="opt-cf">${opt.cf > 0 ? 'CF: +' + opt.cf.toFixed(2) : 'CF: 0 (tidak berkontribusi)'}</div>
+      </div>`;
+    opts.appendChild(btn);
+  });
+
+  document.getElementById('btn-back').disabled = currentQ === 0;
+  updateNextBtn();
+}
+
+function selectOpt(i) {
+  const ei = answers.findIndex(a => a.qIdx === currentQ);
+  if (ei >= 0) answers[ei].optIdx = i; else answers.push({ qIdx: currentQ, optIdx: i });
+  document.querySelectorAll('.opt-btn').forEach((b, j) => b.classList.toggle('selected', j === i));
+  updateNextBtn();
+}
+
+function updateNextBtn() {
+  const ok = answers.some(a => a.qIdx === currentQ);
+  const btn = document.getElementById('btn-next');
+  const last = currentQ === questions.length - 1;
+  btn.textContent = !ok ? 'Pilih jawaban dulu' : last ? 'Tampilkan Hasil →' : 'Lanjut →';
+  btn.disabled = !ok;
+}
+
+function nextQ() { if (currentQ < questions.length - 1) { currentQ++; render(); } else showResult(); }
+function prevQ() { if (currentQ > 0) { currentQ--; render(); } }
+
+function showResult() {
+  const cf = calculateCF(answers);
+  let dominant = 'normal', domScore = 0.08;
+  Object.entries(cf).forEach(([k,v]) => { if (v > domScore) { dominant = k; domScore = v; } });
+
+  const diagMap = {
+    miopi: {
+      label:'Miopi (Rabun Jauh)', sub:'Gangguan refraksi — objek jauh tampak kabur',
+      desc:'Miopi terjadi ketika bola mata terlalu panjang atau kornea terlalu melengkung, sehingga cahaya dari objek jauh difokuskan di depan retina. Penderita dapat melihat objek dekat dengan jelas namun objek jauh tampak kabur. Biasanya berkembang pada masa kanak-kanak hingga remaja dan cenderung stabil setelah usia 20-an.',
+      accent:'var(--c-accent)',
+      recs:[{icon:'👓',t:'Kacamata Lensa Minus',d:'Lensa divergen (−) untuk menggeser titik fokus ke retina'},{icon:'👁',t:'Lensa Kontak Minus',d:'Lensa kontak lunak atau rigid gas permeable dengan kekuatan negatif'},{icon:'⚕',t:'Operasi LASIK',d:'Koreksi permanen dengan laser excimer untuk miopi yang sudah stabil'},{icon:'🌿',t:'Pencegahan Progresivitas',d:'Aktivitas outdoor, aturan 20-20-20, jaga jarak layar minimal 40 cm'}]
+    },
+    hiperopi: {
+      label:'Hiperopi (Rabun Dekat)', sub:'Gangguan refraksi — objek dekat tampak kabur',
+      desc:'Hiperopi terjadi ketika cahaya difokuskan di belakang retina karena bola mata terlalu pendek atau kornea kurang melengkung. Pada anak dan dewasa muda, otot akomodasi dapat mengompensasi, sehingga sering tidak terdeteksi dini namun menyebabkan kelelahan mata dan sakit kepala kronis.',
+      accent:'var(--c-teal)',
+      recs:[{icon:'👓',t:'Kacamata Lensa Plus',d:'Lensa konvergen (+) untuk menggeser fokus ke retina'},{icon:'🔬',t:'Pemeriksaan Sikloplegik',d:'Tes refraksi dengan tetes mata untuk mengukur hiperopi laten'},{icon:'📏',t:'Ergonomi Membaca',d:'Jarak baca 30–40 cm dan pencahayaan cukup'},{icon:'⚕',t:'Operasi Refraktif',d:'LASIK atau lensa intraokular phakik untuk hiperopi tinggi'}]
+    },
+    astigmat: {
+      label:'Astigmatisme (Silinder)', sub:'Kelainan kornea — cahaya tidak fokus pada satu titik',
+      desc:'Astigmatisme terjadi ketika kornea atau lensa mata memiliki kelengkungan yang tidak simetris. Cahaya tidak difokuskan pada satu titik di retina melainkan tersebar, menyebabkan penglihatan buram atau berganda di semua jarak. Sering terjadi bersamaan dengan miopi atau hiperopi.',
+      accent:'var(--c-amber)',
+      recs:[{icon:'👓',t:'Kacamata Silindris',d:'Lensa toric dengan kekuatan berbeda di setiap sumbu'},{icon:'👁',t:'Lensa Kontak Toric',d:'Lensa kontak khusus untuk koreksi astigmatisme'},{icon:'⚕',t:'LASIK / PRK',d:'Ablasi laser untuk meratakan permukaan kornea yang tidak simetris'},{icon:'🔍',t:'Topografi Kornea',d:'Pemetaan detail kelengkungan kornea untuk evaluasi lengkap'}]
+    },
+    normal: {
+      label:'Penglihatan Normal', sub:'Tidak terdeteksi pola gangguan refraksi yang signifikan',
+      desc:'Berdasarkan jawaban Anda, sistem pakar tidak mendeteksi pola gejala yang konsisten dengan miopi, hiperopi, atau astigmatisme. Penglihatan tampaknya dalam batas normal, meski tetap disarankan pemeriksaan rutin oleh dokter spesialis mata.',
+      accent:'var(--c-green)',
+      recs:[{icon:'📅',t:'Pemeriksaan Rutin',d:'Pemeriksaan mata setiap 1–2 tahun meski tidak bergejala'},{icon:'🥕',t:'Nutrisi Mata',d:'Vitamin A, lutein, dan zeaxanthin untuk kesehatan retina'},{icon:'💡',t:'Ergonomi Visual',d:'Pencahayaan yang cukup dan jarak layar yang tepat'},{icon:'🌳',t:'Aktivitas Outdoor',d:'Paparan cahaya alami terbukti protektif terhadap miopi'}]
+    }
+  };
+
+  const d = diagMap[dominant];
+  document.getElementById('res-diagnosis').textContent = d.label;
+  document.getElementById('res-sub').textContent = d.sub;
+  document.getElementById('res-conf').textContent = Math.round(domScore * 100) + '%';
+
+  document.getElementById('res-bars').innerHTML = [
+    {label:'Astigmat (Silinder)', val:cf.astigmat, color:'var(--c-amber)'},
+    {label:'Miopi (Rabun Jauh)',  val:cf.miopi,    color:'var(--c-accent)'},
+    {label:'Hiperopi (Rabun Dekat)', val:cf.hiperopi, color:'var(--c-teal)'},
+  ].map(b => `<div class="res-bar-row">
+    <div class="res-bar-label">${b.label}</div>
+    <div class="res-bar-track"><div class="res-bar-fill" style="width:${(b.val*100).toFixed(1)}%;background:${b.color}"></div></div>
+    <div class="res-bar-pct" style="color:${b.color}">${(b.val*100).toFixed(0)}%</div>
+  </div>`).join('');
+
+  let sevLabel, sevColor, sevBg;
+  if (dominant === 'normal') { sevLabel='Normal'; sevColor='var(--c-green)'; sevBg='rgba(52,211,153,0.1)'; }
+  else if (domScore > 0.75)  { sevLabel='Tinggi'; sevColor='var(--c-red)'; sevBg='rgba(248,113,113,0.1)'; }
+  else if (domScore > 0.45)  { sevLabel='Sedang'; sevColor='var(--c-amber)'; sevBg='rgba(251,191,36,0.1)'; }
+  else                       { sevLabel='Ringan'; sevColor='var(--c-green)'; sevBg='rgba(52,211,153,0.1)'; }
+
+  const sev = document.getElementById('res-severity');
+  sev.textContent = 'Tingkat: ' + sevLabel;
+  sev.style.cssText += `;background:${sevBg};color:${sevColor};border:1px solid ${sevColor}`;
+
+  const descEl = document.getElementById('res-desc');
+  descEl.style.borderLeftColor = d.accent;
+  descEl.innerHTML = `<p>${d.desc}</p>`;
+
+  const evBody = document.getElementById('ev-body');
+  evBody.innerHTML = '';
+  answers.forEach(ans => {
+    const q = questions[ans.qIdx], opt = q.options[ans.optIdx];
+    const pos = opt.cf > 0 && opt.tags.length > 0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${q.category}: ${q.text.substring(0,55)}...</td>
+      <td class="${pos?'ev-yes':'ev-no'}">${pos?'✓ Positif':'— Negatif'}</td>
+      <td style="color:${pos?'var(--c-accent)':'var(--c-dim)'}">${opt.cf>0?'+'+opt.cf.toFixed(2):'0'}</td>
+      <td>${opt.tags.filter(t=>!t.endsWith('_hint')).join(', ')||'—'}</td>`;
+    evBody.appendChild(tr);
+  });
+
+  const pos = answers.filter(a => { const o = questions[a.qIdx].options[a.optIdx]; return o.cf>0&&o.tags.length>0; });
+  let trace = `<strong style="color:var(--c-text)">Forward Chaining — ${pos.length} gejala positif dari ${answers.length} pertanyaan</strong><br><br>`;
+  pos.slice(0,8).forEach((ans,i) => {
+    const q = questions[ans.qIdx], opt = q.options[ans.optIdx];
+    const tags = opt.tags.filter(t=>!t.endsWith('_hint')).join(', ');
+    trace += `${i+1}. [${q.category}] ${opt.label.substring(0,52)}... → CF=${opt.cf.toFixed(2)}${tags?' | '+tags:''}<br>`;
+  });
+  trace += `<br><strong style="color:var(--c-text)">CF Gabungan:</strong> Miopi=${(cf.miopi*100).toFixed(0)}% · Hiperopi=${(cf.hiperopi*100).toFixed(0)}% · Astigmat=${(cf.astigmat*100).toFixed(0)}%<br>`;
+  trace += `<strong style="color:var(--c-accent)">→ Diagnosa: ${d.label} (CF = ${(domScore*100).toFixed(0)}%)</strong>`;
+  document.getElementById('res-trace').innerHTML = trace;
+
+  document.getElementById('res-recs').innerHTML = d.recs.map(r => `
+    <div class="rec-card">
+      <div class="rec-card-icon">${r.icon}</div>
+      <div class="rec-card-title">${r.t}</div>
+      <div class="rec-card-desc">${r.d}</div>
+    </div>`).join('');
+
+  document.getElementById('quiz-section').style.display = 'none';
+  document.getElementById('kb-section').style.display = 'none';
+  document.getElementById('result-section').style.display = 'block';
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+function restart() {
+  currentQ = 0; answers = [];
+  document.getElementById('quiz-section').style.display = 'block';
+  document.getElementById('kb-section').style.display = 'block';
+  document.getElementById('result-section').style.display = 'none';
+  render();
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+render();
+</script>
+</body>
+</html>
